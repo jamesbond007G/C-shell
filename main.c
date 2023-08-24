@@ -152,37 +152,37 @@ void separate_foreground_background(process *background, process *foreground, ch
         strcpy((*foreground).arr[(*background).number++], final_strings[lol1]);
     }
 }
-char *format_string(char *str)
-{
-    int len = strlen(str);
-    char *final = (char *)malloc(sizeof(char) * (len + 10));
-    int j = 0;
-    for (int i = len - 1; i >= 1; i--)
-    {
-        if (str[i] == ' ' && str[i - 1] != ' ' && str[i + 1] != ' ')
-        {
-            final[j++] = str[i];
-        }
-        else if (str[i] != ' ')
-        {
-            final[j++] = str[i];
-        }
-    }
-    if (str[0] != ' ')
-    {
-        final[j++] = str[0];
-    }
-    final[j] = '\0';
-    printf("new_string = %s\n", final);
-    for (int i = 0; i < strlen(final) / 2; i++)
-    {
-        char temp1;
-        temp1 = final[i];
-        final[i] = final[strlen(final) - 1 - i];
-        final[strlen(final) - 1 - i] = temp1;
-    }
-    return final;
-}
+// char *format_string(char *str)
+// {
+//     int len = strlen(str);
+//     char *final = (char *)malloc(sizeof(char) * (len + 10));
+//     int j = 0;
+//     for (int i = len - 1; i >= 1; i--)
+//     {
+//         if (str[i] == ' ' && str[i - 1] != ' ' && str[i + 1] != ' ')
+//         {
+//             final[j++] = str[i];
+//         }
+//         else if (str[i] != ' ')
+//         {
+//             final[j++] = str[i];
+//         }
+//     }
+//     if (str[0] != ' ')
+//     {
+//         final[j++] = str[0];
+//     }
+//     final[j] = '\0';
+//     printf("new_string = %s\n", final);
+//     for (int i = 0; i < strlen(final) / 2; i++)
+//     {
+//         char temp1;
+//         temp1 = final[i];
+//         final[i] = final[strlen(final) - 1 - i];
+//         final[strlen(final) - 1 - i] = temp1;
+//     }
+//     return final;
+// }
 char *string(int length)
 {
     char *a;
@@ -935,7 +935,6 @@ int check_exists_command_file(char instruction[4096], char *home_dir)
     size_t read = fread(buffer, -begin, -begin, fptr);
     // buffer[read] = '\0';
     fclose(fptr);
-    // printf("this is the string i have got        %s\n", buffer);
     if (strcmp(buffer, instruction) == 0)
     {
         return 1;
@@ -1010,31 +1009,40 @@ void store(char instruction[4096], char *home_dir)
 }
 void execute_system_call(char *instructions)
 {
-    int fork111 = fork();
-   
-        char *small_instructions[2000];
-        // if (fork111 == 0)
-        // {
-        char delimiter1[] = " \t";
-        for (int i = 0; i < 2000; i++)
-        {
-            small_instructions[i] = (char *)malloc(sizeof(char) * 1000);
-        }
-        char *token = strtok(instructions, delimiter1);
-        int count = 0;
-        while (token != NULL)
-        {
-            small_instructions[count++] = token;
-            // printf("%s  ", token);
-            token = strtok(NULL, delimiter1);
-        }
+    // int fork111 = fork();
 
-        small_instructions[count] = NULL;
+    char *small_instructions[2000];
+    // if (fork111 == 0)
+    // {
+    char delimiter1[] = " \t";
+    for (int i = 0; i < 2000; i++)
+    {
+        small_instructions[i] = (char *)malloc(sizeof(char) * 1000);
+    }
+    char *token = strtok(instructions, delimiter1);
+    int count = 0;
+    while (token != NULL)
+    {
+        small_instructions[count++] = token;
+        // printf("%s  ", token);
+        token = strtok(NULL, delimiter1);
+    }
+
+    small_instructions[count] = NULL;
+    int llll = fork();
+    if (llll == 0)
+    {
         if (execvp(small_instructions[0], small_instructions) == -1)
         {
             printf("invalid command\n");
+            return;
+            // main();
         }
-  
+    }
+    else if (llll > 0)
+    {
+        wait(NULL);
+    }
 
     // return;
 }
@@ -1278,18 +1286,25 @@ void run(char *instructions[2000], int instruction_count, char *directory, char 
 
             // char previous[4096];
             // printf("YES\n");
+            // printf("%d", instr)
             if (i + 1 == instruction_count)
             {
-                // printf("%s\n", current_directory());
+                printf("%s\n", current_directory());
                 strcpy(previous, current_directory());
                 chdir(home_directory);
                 i = i + 1;
                 continue;
             }
-            for (int j = i + 1; j < instruction_count; j++)
+            // printf("%d",i);
+            // printf("%s", instructions[i]);
+            int j;
+            // printf("%s\n", instructions[i+1]);
+            for (j = i + 1; j < instruction_count; j++)
             {
-                if (instructions[j][0] == '.' && instructions[j + 1][0] == '\0')
+                if (instructions[j][0] == '.' && instructions[j][1] == '\0')
                 {
+                    strcpy(previous, current_directory());
+                    // printf("YES\n");
                     continue;
                 }
                 else if (instructions[j][0] == '-')
@@ -1311,6 +1326,7 @@ void run(char *instructions[2000], int instruction_count, char *directory, char 
                 }
                 else
                 {
+                    printf("%s\n", instructions[j]);
                     // printf("%s\n", instructions[i + 1]);
                     // strcpy(previous, directory);
                     strcpy(previous, current_directory());
@@ -1321,8 +1337,8 @@ void run(char *instructions[2000], int instruction_count, char *directory, char 
                         printf("no such directory\n");
                     }
                 }
-                i = j;
             }
+            i = j;
 
             // printf()
         }
@@ -1452,7 +1468,11 @@ void run(char *instructions[2000], int instruction_count, char *directory, char 
         {
             char *maaa = (char *)malloc(sizeof(char) * directory_name_length);
             strcpy(maaa, new_input_xxx);
+
+            // int fo = fork();
+
             execute_system_call(new_input_xxx);
+
             char delimiter1[] = " \t";
 
             char *token = strtok(maaa, delimiter1);
@@ -1521,8 +1541,9 @@ void run_final(char *input, char *input_store, int *number, int backgroundid[500
                 // printf("%s ", token);
                 token = strtok(NULL, delimiter1);
             }
-            // printf("\n");
-            run(instructions, instruction_count, directory, home_directory, code_store_directory, input_store, new_input_xxx);
+            
+                run(instructions, instruction_count, directory, home_directory, code_store_directory, input_store, new_input_xxx);
+            
         }
         else if (background.arr[i])
         {
