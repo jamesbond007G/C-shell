@@ -19,11 +19,14 @@ void run_background(int backgroundid[500], int *number, char *instructions)
         int count = 0;
         while (token != NULL)
         {
-            strcpy(small_instructions[count++],token);
+            strcpy(small_instructions[count++], token);
             token = strtok(NULL, delimiter1);
         }
         small_instructions[count] = NULL;
-        execvp(small_instructions[0], small_instructions);
+        if (execvp(small_instructions[0], small_instructions) == -1)
+        {
+            printf("no such command\n");
+        }
     }
     else if (getid > 0)
     {

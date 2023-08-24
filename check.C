@@ -247,7 +247,16 @@ void seek_f(char *path_entered, char *to_find)
         strcat(full_path, temp);
         strcat(full_path, all_files_of_directory[i - 1]);
         stat(full_path, &info);
-        if (strcmp(entry->d_name, to_find) == 0)
+        int n_for_comparing = 0;
+        for (int i = 0; i < strlen(entry->d_name); i++)
+        {
+            if (entry->d_name[i] == '.')
+            {
+                n_for_comparing = i;
+                break;
+            }
+        }
+        if (strncmp(entry->d_name, to_find,n_for_comparing) == 0)
         {
             if (checkdirectory(info) != 1)
             {

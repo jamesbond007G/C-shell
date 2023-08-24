@@ -4,12 +4,64 @@
 #define blue_color "\x1b[34m"
 #define green_color "\x1b[32m"
 #define violet_color "\x1b[35m"
-
+int backgroundid[500];
+int number;
+int main();
 #define reset_color "\x1b[0m"
 void run(char *instructions[2000], int instruction_count, char *directory, char *home_directory, char *code_store_directory, char *input, char *new_input_xxx);
 void pastevents_delete(char *home_dir);
 void pastevents_execute(int n, char *home_dir, char *directory, char *home_directory, char *code_store_directory, char *input, char *new_input_xxx);
+void run_final(char *input, char *input_store, int *number, int backgroundid[500]);
+void print_cur_directory();
+char *filecat(char *a, char *b);
 
+void print_whole_file(char *full_path)
+{
+    // printf("YESyahoo\n");
+    char line[10000];
+    FILE *fptr = fopen(full_path, "r");
+    char c;
+    while (fgets(line, sizeof(line), fptr) != NULL)
+    {
+        printf("%s", line);
+    }
+}
+int check_valid_flag(char *instruction)
+{
+    if (instruction[0] == '-')
+    {
+        if (strlen(instruction) == 2)
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+int check_past_events_in_input(char *input)
+{
+    // char targ
+    char delimiter1[] = " ;\t\n&";
+    // char delimiter2 = ';';
+    char *instructions[2000];
+
+    int instruction_count = 0;
+    char *token = strtok(input, delimiter1);
+
+    while (token != NULL)
+    {
+        instructions[instruction_count++] = token;
+        token = strtok(NULL, delimiter1);
+    }
+    for (int i = 0; i < instruction_count; i++)
+    {
+        if (strcmp(instructions[i], "pastevents") == 0)
+        {
+            return 1;
+        }
+    }
+    return 0;
+}
 char home_directory[directory_name_length];
 char code_store_directory[directory_name_length];
 char directory[256];
@@ -42,7 +94,7 @@ void check_process_state(pid_t pid)
 }
 void separate_foreground_background(process *background, process *foreground, char *input)
 {
-    char delimiter1[] = ";";
+    char delimiter1[] = ";\n";
     // char delimiter2 = ';';
     char *instructions[2000];
 
@@ -54,10 +106,15 @@ void separate_foreground_background(process *background, process *foreground, ch
         instructions[instruction_count++] = token;
         token = strtok(NULL, delimiter1);
     }
+
     for (int i = 0; i < instruction_count; i++)
     {
         char delimiter2[] = "&";
+        // if(instr)
+
         char *token1 = strtok(instructions[i], delimiter2);
+        char *save_i_instruction = (char *)malloc(sizeof(char) * 4096);
+        // strcpy(save_i_instruction, instructions[]) ;
         char *final_strings[200];
         for (int lol = 0; lol < 200; lol++)
         {
@@ -69,7 +126,21 @@ void separate_foreground_background(process *background, process *foreground, ch
             final_strings[count++] = token1;
             token1 = strtok(NULL, delimiter2);
         }
-        int lol1;
+        int flag_for_background_process_available = 0;
+        if (count == 1)
+        {
+            for (int j = 0; j < strlen(instructions[i]); j++)
+            {
+                if (instructions[i][j] == '&')
+                {
+                    flag_for_background_process_available = 1;
+                    printf("YES\n");
+                }
+            }
+        }
+
+        int lol1 = 0;
+
         for (lol1 = 0; lol1 <= count - 2; lol1++)
         {
             background->arr[background->number] = (char *)malloc(sizeof(char) * 4000);
@@ -186,10 +257,7 @@ int strcmp1(char *a, char *b)
 {
     char *modifieda = changed_file_name_for_comparison((char *)a);
     char *modifiedb = changed_file_name_for_comparison((char *)b);
-
-    // int lengtha = strlen(modifieda);
-    // int lengthb = strlen(modifiedb);
-    return strcmp2(modifieda, modifiedb);
+    return strcmp2(a, b);
 }
 
 int compare_strings(const void *a, const void *b)
@@ -271,8 +339,15 @@ char *make_path_for_spaces(char *instructions[2000], int i, int instruction_coun
         char temp[2];
         temp[0] = '/';
         temp[1] = '\0';
-        strcat(c, temp);
-        strcat(c, instructions[k]);
+        if (instructions[k][0] != '/')
+        {
+            strcat(c, temp);
+            strcat(c, instructions[k]);
+        }
+        else
+        {
+            strcat(c, instructions[k]);
+        }
     }
     return c;
 }
@@ -546,18 +621,22 @@ void ls(char *instructions[2000], int instruction_index, int instructions_count)
     instruction_index = instruction_index + 1;
     while ((instruction_index != instructions_count) && instructions[instruction_index][0] == '-')
     {
-        if (strcmp(instructions[instruction_index], "-l") == 0)
+        if (strcmp(instructions[instruction_index], "-l") == 0 && check_valid_flag(instructions[instruction_index]))
         {
             long_flag = 1;
         }
-        else if (strcmp(instructions[instruction_index], "-a") == 0)
+        else if (strcmp(instructions[instruction_index], "-a") == 0 && check_valid_flag(instructions[instruction_index]))
         {
             hidden_flag = 1;
         }
-        else
+        else if (strcmp(instructions[instruction_index], "-al") == 0 || strcmp(instructions[instruction_index], "-la") == 0)
         {
             hidden_flag = 1;
             long_flag = 1;
+        }
+        if (check_valid_flag(instructions[instruction_index]))
+        {
+            printf("Invalid flag %s\n", instructions[instruction_index]);
         }
         instruction_index++;
     }
@@ -666,6 +745,186 @@ int read_bytes_from_file(int i, char *home_dir)
     fclose(fptr1);
     return number;
 }
+void seek_normal(char *path_entered, char *to_find)
+{
+    DIR *dir = opendir(path_entered);
+    if (dir == NULL)
+    {
+        // printf("incorrect path. no such directory exists");
+        return;
+    }
+    struct dirent *en;
+    struct dirent *entry;
+    int count_no_of_files_and_folders = 0;
+    while ((entry = readdir(dir)) != NULL)
+    {
+        count_no_of_files_and_folders++;
+    }
+    char *all_files_of_directory[count_no_of_files_and_folders];
+    for (int i = 0; i < count_no_of_files_and_folders; i++)
+    {
+        all_files_of_directory[i] = (char *)malloc(sizeof(char) * 300);
+    }
+    DIR *dir1 = opendir(path_entered);
+    int i = 0;
+    while ((entry = readdir(dir1)) != NULL)
+    {
+        all_files_of_directory[i++] = entry->d_name;
+        char temp[2];
+        char *full_path = (char *)malloc(sizeof(char) * 5000);
+        temp[0] = '/';
+        temp[1] = '\0';
+        struct stat info;
+        strcpy(full_path, path_entered);
+        filecat(full_path, all_files_of_directory[i - 1]);
+        // strcat(full_path, temp);
+        // strcat(full_path, all_files_of_directory[i - 1]);
+        stat(full_path, &info);
+        int n_for_comparing = strlen(entry->d_name);
+        for (int j = 0; j < strlen(entry->d_name); j++)
+        {
+            if (entry->d_name[j] == '.')
+            {
+                n_for_comparing = j;
+                break;
+            }
+        }
+        if (n_for_comparing > strlen(to_find) - 1 && strncmp(entry->d_name, to_find, n_for_comparing) == 0 && strcmp(entry->d_name, "..\0") != 0 && strcmp(entry->d_name, ".\0") != 0)
+        {
+            printf("%s\n", full_path);
+        }
+        if (checkdirectory(info) == 1)
+        {
+            if (strcmp(entry->d_name, "..\0") != 0 && strcmp(entry->d_name, ".\0") != 0)
+            {
+                // printf("directory %s\n", full_path);
+                seek_normal(full_path, to_find);
+            }
+        }
+    }
+    closedir(dir1);
+
+    closedir(dir);
+}
+void seek_d(char *path_entered, char *to_find)
+{
+    DIR *dir = opendir(path_entered);
+    if (dir == NULL)
+    {
+        // printf("incorrect path. no such directory exists");
+        return;
+    }
+    struct dirent *en;
+    struct dirent *entry;
+    int count_no_of_files_and_folders = 0;
+    while ((entry = readdir(dir)) != NULL)
+    {
+        count_no_of_files_and_folders++;
+    }
+    char *all_files_of_directory[count_no_of_files_and_folders];
+    for (int i = 0; i < count_no_of_files_and_folders; i++)
+    {
+        all_files_of_directory[i] = (char *)malloc(sizeof(char) * 300);
+    }
+    DIR *dir1 = opendir(path_entered);
+    int i = 0;
+    while ((entry = readdir(dir1)) != NULL)
+    {
+        all_files_of_directory[i++] = entry->d_name;
+        char temp[2];
+        char *full_path = (char *)malloc(sizeof(char) * 5000);
+        temp[0] = '/';
+        temp[1] = '\0';
+        struct stat info;
+        strcpy(full_path, path_entered);
+        strcat(full_path, temp);
+        strcat(full_path, all_files_of_directory[i - 1]);
+        stat(full_path, &info);
+        if (strcmp(entry->d_name, to_find) == 0)
+        {
+            if (checkdirectory(info) == 1)
+            {
+                printf("%s\n", full_path);
+            }
+        }
+        if (checkdirectory(info) == 1)
+        {
+            if (strcmp(entry->d_name, "..") != 0 && strcmp(entry->d_name, ".\0") != 0)
+            {
+                // printf("directory %s\n", full_path);
+                seek_d(full_path, to_find);
+            }
+        }
+    }
+    closedir(dir1);
+
+    closedir(dir);
+}
+void seek_f(char *path_entered, char *to_find)
+{
+    DIR *dir = opendir(path_entered);
+    // printf("%s\n", path_entered);
+    if (dir == NULL)
+    {
+        // printf("incorrect path. no such directory exists\n");
+        return;
+    }
+    struct dirent *en;
+    struct dirent *entry;
+    int count_no_of_files_and_folders = 0;
+    while ((entry = readdir(dir)) != NULL)
+    {
+        count_no_of_files_and_folders++;
+    }
+    char *all_files_of_directory[count_no_of_files_and_folders];
+    for (int i = 0; i < count_no_of_files_and_folders; i++)
+    {
+        all_files_of_directory[i] = (char *)malloc(sizeof(char) * 300);
+    }
+    DIR *dir1 = opendir(path_entered);
+    int i = 0;
+    while ((entry = readdir(dir1)) != NULL)
+    {
+        all_files_of_directory[i++] = entry->d_name;
+        char temp[2];
+        char *full_path = (char *)malloc(sizeof(char) * 5000);
+        temp[0] = '/';
+        temp[1] = '\0';
+        struct stat info;
+        strcpy(full_path, path_entered);
+        strcat(full_path, temp);
+        strcat(full_path, all_files_of_directory[i - 1]);
+        stat(full_path, &info);
+        int n_for_comparing = strlen(entry->d_name);
+        for (int i = 0; i < strlen(entry->d_name); i++)
+        {
+            if (entry->d_name[i] == '.')
+            {
+                n_for_comparing = i;
+                break;
+            }
+        }
+        // printf("%s\n", entry->d_name);
+        if (n_for_comparing > strlen(to_find) - 1 && strncmp(entry->d_name, to_find, n_for_comparing) == 0)
+        {
+            if (checkdirectory(info) == 0)
+            {
+                printf("%s\n", full_path);
+            }
+        }
+        if (checkdirectory(info) == 1)
+        {
+            if (strcmp(entry->d_name, "..\0") != 0 && strcmp(entry->d_name, ".\0") != 0)
+            {
+                // printf("directory %s\n", full_path);
+                seek_f(full_path, to_find);
+            }
+        }
+    }
+    closedir(dir1);
+
+    closedir(dir);
+}
 int check_exists_command_file(char instruction[4096], char *home_dir)
 {
     FILE *fptr = open_c_file("r", home_dir);
@@ -725,13 +984,11 @@ void store(char instruction[4096], char *home_dir)
 
     FILE *fptr = open_c_file("a", home_dir);
     FILE *fptr1 = open_b_file("a", home_dir);
-    // printf("this is the instructions i am storing      %s\n", instruction);
-    // for(inti)
-    // fprintf(fptr,instructions)
-    // FILE *fptr_for_check
     char *new_string = (char *)malloc(sizeof(char) * 5000);
     strcpy(new_string, instruction);
-    if (check_exists_command_file(new_string, home_dir) == 0)
+    char *string_for_comparison = (char *)malloc(sizeof(char) * 5000);
+    string_for_comparison = get_instructions_for_i(1, home_dir);
+    if (strcmp(string_for_comparison, new_string) != 0)
     {
         // fseek(fptr, 0,SEEK_SET);
 
@@ -753,11 +1010,12 @@ void store(char instruction[4096], char *home_dir)
 }
 void execute_system_call(char *instructions)
 {
-    int fork1 = fork();
-    if (fork1 == 0)
-    {
-        char delimiter1[] = " \t";
+    int fork111 = fork();
+   
         char *small_instructions[2000];
+        // if (fork111 == 0)
+        // {
+        char delimiter1[] = " \t";
         for (int i = 0; i < 2000; i++)
         {
             small_instructions[i] = (char *)malloc(sizeof(char) * 1000);
@@ -770,22 +1028,15 @@ void execute_system_call(char *instructions)
             // printf("%s  ", token);
             token = strtok(NULL, delimiter1);
         }
-        // printf("\n");
-        // printf("instruction executed %s\n", small_instructions[0]);
+
         small_instructions[count] = NULL;
-        // for (int i = 0; i < count; i++)
-        // {
-        //     printf("%s ", small_instructions[i]);
-        // }
-        // printf("\n");
-        execvp(small_instructions[0], small_instructions);
-    }
-    else if (fork1 > 0)
-    {
-        wait(NULL);
-    }
+        if (execvp(small_instructions[0], small_instructions) == -1)
+        {
+            printf("invalid command\n");
+        }
+  
+
     // return;
-    // int k = main();
 }
 int check_readable(struct stat info)
 {
@@ -823,6 +1074,14 @@ void seek_e(char *path_entered, char *to_find, int f_flag, int d_flag)
     int i = 0;
     while ((entry = readdir(dir1)) != NULL)
     {
+        if (strcmp(entry->d_name, "..\0") == 0)
+        {
+            continue;
+        }
+        else if (strcmp(entry->d_name, ".\0") == 0)
+        {
+            continue;
+        }
         all_files_of_directory[i++] = entry->d_name;
         char temp[2];
         char *full_path = (char *)malloc(sizeof(char) * 5000);
@@ -833,18 +1092,30 @@ void seek_e(char *path_entered, char *to_find, int f_flag, int d_flag)
         strcat(full_path, temp);
         strcat(full_path, all_files_of_directory[i - 1]);
         stat(full_path, &info);
-        if (strcmp(entry->d_name, to_find) == 0)
+        int n_for_comparing = strlen(entry->d_name); // Initialize with a default value
+        for (int i = 0; i < strlen(entry->d_name); i++)
+        {
+            if (entry->d_name[i] == '.')
+            {
+                n_for_comparing = i;
+                break;
+            }
+        }
+        if (n_for_comparing >= strlen(to_find) - 1 && strncmp(entry->d_name, to_find, n_for_comparing) == 0)
         {
             if (f_flag == 1 && checkdirectory(info) != 1)
             {
                 if (check_readable(info) == 1)
                 {
-                    printf("%s\n", full_path);
+                    // printf("gopal\n");
+                    print_whole_file(full_path);
+                    printf("\n");
                 }
                 else
                 {
                     printf("Missing permissions for task!\n");
                 }
+                return;
             }
             else if (d_flag == 1 && checkdirectory(info) == 1)
             {
@@ -857,6 +1128,32 @@ void seek_e(char *path_entered, char *to_find, int f_flag, int d_flag)
                 {
                     printf("Missing permissions for task!\n");
                 }
+                return;
+            }
+            else
+            {
+                if (checkexecutable(info) == 1)
+                {
+
+                    printf("yes = %s\n", full_path);
+                    chdir(full_path);
+                }
+                else
+                {
+                    printf("Missing permissions for task!\n");
+                }
+                return;
+                if (check_readable(info) == 1)
+                {
+                    // printf("gopal\n");
+                    print_whole_file(full_path);
+                    printf("\n");
+                }
+                else
+                {
+                    printf("Missing permissions for task!\n");
+                }
+                return;
             }
         }
         if (checkdirectory(info) == 1)
@@ -876,7 +1173,7 @@ void run_background(int backgroundid[500], int *number, char *instructions)
 {
     // int number = 5;
     // int backgroundid[number];
-    // FILE* fptr = fopen("/files")
+
     int getid = fork();
     if (getid == 0)
     {
@@ -895,7 +1192,10 @@ void run_background(int backgroundid[500], int *number, char *instructions)
             token = strtok(NULL, delimiter1);
         }
         small_instructions[count] = NULL;
-        execvp(small_instructions[0], small_instructions);
+        if (execvp(small_instructions[0], small_instructions) == -1)
+        {
+            printf("no such command\n");
+        }
     }
     else if (getid > 0)
     {
@@ -920,81 +1220,127 @@ void pastevents_delete(char *home_dir)
     FILE *fptr1 = open_b_file("w", home_dir);
     fclose(fptr);
     fclose(fptr1);
+    // return;
 }
 
+void warp(char *instructions[2000], int i, int instruction_count)
+{
+    char *newinput_path;
+    newinput_path = make_path_for_spaces(instructions, i, instruction_count);
+    char previous[4096];
+    int start = strlen(directory) - 1;
+    char doubledot[4] = "..";
+    char minus[4] = "-";
+    char delimiter[] = " ";
+    char *token4 = strtok(instructions[i], delimiter);
+    if (token4[0] == '-')
+    {
+        char previousnew[4096];
+        char *new_path = make_path_for_minus(previous, newinput_path);
+        strcpy(previousnew, current_directory());
+        chdir(new_path);
+        // free(new_path);
+        strcpy(previous, previousnew);
+        // printf("%s\n", previous);
+    }
+    else if (token4[0] == '~')
+    {
+        strcpy(previous, current_directory());
+        chdir(make_path_for_tilda(home_directory, newinput_path));
+    }
+    else
+    {
+        // printf("%s\n", instructions[i + 1]);
+        // strcpy(previous, directory);
+        strcpy(previous, current_directory());
+
+        // printf("%s\n", new_input_xxx);
+        chdir(newinput_path);
+    }
+
+    // printf()
+    i = instruction_count;
+}
+int min(int a, int b)
+{
+    if (a < b)
+        return a;
+    else
+        return b;
+}
+char previous[4096];
 void run(char *instructions[2000], int instruction_count, char *directory, char *home_directory, char *code_store_directory, char *input, char *new_input_xxx)
 {
     for (int i = 0; i < instruction_count; i++)
     {
-        char previous[1024];
         if (strcmp(instructions[i], "warp") == 0)
         {
 
-            /* code */
-            char *newinput_path;
-            newinput_path = make_path_for_spaces(instructions, i, instruction_count);
-            char previous[4096];
-            int start = strlen(directory) - 1;
-            char doubledot[4] = "..";
-            char minus[4] = "-";
-            char delimiter[] = " ";
-            char *token4 = strtok(instructions[i + 1], delimiter);
-            if (token4[0] == '.' && token4[1] == '.')
+            // char previous[4096];
+            // printf("YES\n");
+            if (i + 1 == instruction_count)
             {
+                // printf("%s\n", current_directory());
                 strcpy(previous, current_directory());
-                // make_path_for_minus
-                chdir(newinput_path);
-                // printf("YES\n");
+                chdir(home_directory);
+                i = i + 1;
+                continue;
             }
-            else if (token4[i] == '.' && token4[i] != '.')
+            for (int j = i + 1; j < instruction_count; j++)
             {
-                strcpy(previous, current_directory());
-
-                chdir(newinput_path);
-            }
-            else if (token4[0] == '-')
-            {
-                char previousnew[4096];
-                char *new_path = make_path_for_minus(previous, newinput_path);
-                strcpy(previousnew, current_directory());
-                chdir(new_path);
-                // free(new_path);
-                strcpy(previous, previousnew);
-                // printf("%s\n", previous);
-            }
-            else if (token4[0] == '~')
-            {
-                strcpy(previous, current_directory());
-                chdir(make_path_for_tilda(home_directory, newinput_path));
-            }
-            else
-            {
-                // printf("%s\n", instructions[i + 1]);
-                // strcpy(previous, directory);
-                strcpy(previous, current_directory());
-                printf("previous directory = %s\n", previous);
-                if (instructions[i + 1][0] != '/')
+                if (instructions[j][0] == '.' && instructions[j + 1][0] == '\0')
                 {
-                    // printf("YES\n");
+                    continue;
+                }
+                else if (instructions[j][0] == '-')
+                {
+                    char previousnew[4096];
+                    // printf("%s", current_directory)
+                    // char *new_path = make_path_for_minus(previous, newinput_path);
+                    strcpy(previousnew, current_directory());
+                    chdir(previous);
+                    // free(new_path);
+                    strcpy(previous, previousnew);
+                    // printf("%s\n", previous);
+                }
+                else if (instructions[j][0] == '~')
+                {
+                    strcpy(previous, current_directory());
 
-                    // printf("%s\n", directory);
-                    filecat(previous, instructions[i + 1]);
-                    printf("final directory = %s\n", previous);
+                    chdir(make_path_for_tilda(home_directory, instructions[j]));
+                }
+                else
+                {
+                    // printf("%s\n", instructions[i + 1]);
+                    // strcpy(previous, directory);
+                    strcpy(previous, current_directory());
 
-                    if (chdir(previous) != 0)
+                    // printf("%s\n", new_input_xxx);
+                    if (chdir(instructions[j]) == -1)
                     {
-                        printf("NO such directory.\n");
+                        printf("no such directory\n");
                     }
                 }
+                i = j;
             }
 
             // printf()
-            i = i + 2;
-            // free(newinput_path);
         }
+        // free(newinput_path);
+
         else if (strcmp(instructions[i], "peek") == 0)
         {
             ls(instructions, i, instruction_count);
+            i++;
+            while ((i != instruction_count - 1) && instructions[i][0] == '-')
+            {
+
+                i++;
+            }
+            if (i == instruction_count - 1)
+            {
+                i = i + 1;
+            }
         }
         else if (strcmp(instructions[i], "pastevents") == 0)
         {
@@ -1002,29 +1348,120 @@ void run(char *instructions[2000], int instruction_count, char *directory, char 
             {
                 int z = 1;
                 pastevents_delete(code_store_directory);
+                i = i + 2;
             }
             else if (strcmp(instructions[i + 1], "execute") == 0)
             {
                 int l = 1;
-                pastevents_execute(instructions[i + 2][0] - '0', code_store_directory, directory, home_directory, code_store_directory, input, new_input_xxx);
+                // atoi(instructions[i+])
+                pastevents_execute(atoi(instructions[i + 2]), code_store_directory, directory, home_directory, code_store_directory, input, new_input_xxx);
+                i = i + 3;
             }
             else
             {
                 FILE *fptr12 = open_b_file("r", code_store_directory);
                 fseek(fptr12, 0, SEEK_END);
                 int size_of_file = ftell(fptr12);
-                printf("%d", size_of_file);
-                for (int i = 1; i < size_of_file / 5; i++)
+                // printf("%d", size_of_file);
+                for (int i = 1; i < min(size_of_file / 5, 16); i++)
                 {
-                    printf("%d --- %s\n", i, get_instructions_for_i(i, code_store_directory));
+                    printf("%s\n", get_instructions_for_i(i, code_store_directory));
                 }
                 fclose(fptr12);
+                i = i + 1;
+            }
+        }
+        else if (strcmp(instructions[i], "seek") == 0)
+        {
+            i++;
+            int f_flag = 0;
+            int d_flag = 0;
+            int e_flag = 0;
+            while (instructions[i][0] == '-')
+            {
+                if (strcmp(instructions[i], "-f") == 0 && check_valid_flag(instructions[i]))
+                {
+                    f_flag = 1;
+                }
+                if (strcmp(instructions[i], "-d") == 0 && check_valid_flag(instructions[i]))
+                {
+                    d_flag = 1;
+                }
+                if (strcmp(instructions[i], "-e") == 0 && check_valid_flag(instructions[i]))
+                {
+                    e_flag = 1;
+                }
+                if (check_valid_flag(instructions[i]) == 0)
+                {
+                    printf("Invalid flag %s\n", instructions[i]);
+                }
+
+                i++;
+            }
+
+            char *to_find = (char *)malloc(sizeof(char) * 500);
+            strcpy(to_find, instructions[i]);
+            char path_to_be_entered[4000];
+            if (i == instruction_count - 1)
+            {
+
+                getcwd(path_to_be_entered, sizeof(path_to_be_entered));
+                i = i + 1;
+            }
+            else
+            {
+                strcpy(path_to_be_entered, instructions[i + 1]);
+                i = i + 2;
+            }
+
+            if (f_flag == 1 && d_flag == 0 && e_flag == 1)
+            {
+                seek_e(path_to_be_entered, to_find, 1, 0);
+            }
+            else if (f_flag == 1 && d_flag == 0 && e_flag == 0)
+            {
+
+                seek_f(path_to_be_entered, to_find);
+            }
+            else if (f_flag == 0 && d_flag == 1 && e_flag == 1)
+            {
+                seek_e(path_to_be_entered, to_find, 0, 1);
+            }
+            else if (f_flag == 0 && d_flag == 1 && e_flag == 0)
+            {
+                seek_d(path_to_be_entered, to_find);
+            }
+            else if (f_flag == 1 && d_flag == 1 && e_flag == 0)
+            {
+                seek_normal(path_to_be_entered, to_find);
+            }
+            else if (f_flag == 1 && d_flag == 1 && e_flag == 1)
+            {
+                seek_e(path_to_be_entered, to_find, 1, 1);
+            }
+            else if (f_flag == 0 && d_flag == 0 && e_flag == 1)
+            {
+                seek_e(path_to_be_entered, to_find, 0, 0);
+            }
+            else if (f_flag == 0 && d_flag == 0 && e_flag == 0)
+            {
+                seek_normal(path_to_be_entered, to_find);
             }
         }
         else
         {
-            // printf("totoal - %s\n", new_input_xxx);
+            char *maaa = (char *)malloc(sizeof(char) * directory_name_length);
+            strcpy(maaa, new_input_xxx);
             execute_system_call(new_input_xxx);
+            char delimiter1[] = " \t";
+
+            char *token = strtok(maaa, delimiter1);
+            while (token != NULL)
+            {
+                i++;
+
+                token = strtok(NULL, delimiter1);
+            }
         }
     }
 }
@@ -1032,13 +1469,17 @@ void pastevents_execute(int n, char *home_dir, char *directory, char *home_direc
 {
     char *instruction[2];
     // f)
-    instruction[0] = (char*)malloc(sizeof(char)*500);
+    instruction[0] = (char *)malloc(sizeof(char) * 500);
     instruction[0] = get_instructions_for_i(n, home_dir);
-    run(instruction, 1, directory, home_dir, code_store_directory, input, new_input_xxx);
+    // printf("%s\n", instruction[0]);
+    char *input_store;
+    input_store = (char *)malloc(sizeof(char) * 4096);
+    run_final(instruction[0], input_store, &number, backgroundid);
+    // run(instruction, 1, directory, home_dir, code_store_directory, input, new_input_xxx);
 }
 void print_background_status(int number, int backgroundid[500]);
 
-void run_final(char* input, char* input_store, int number, int backgroundid[500])
+void run_final(char *input, char *input_store, int *number, int backgroundid[500])
 {
     if (input[strlen(input) - 1] == '\n')
     {
@@ -1054,59 +1495,50 @@ void run_final(char* input, char* input_store, int number, int backgroundid[500]
         foreground.arr[i] = NULL;
         background.arr[i] = NULL;
     }
-    int fork123 = fork();
-    if (fork123 == 0)
+
+    separate_foreground_background(&background, &foreground, input);
+    for (int i = 0; i < background.number; i++)
     {
-        separate_foreground_background(&background, &foreground, input);
-        for (int i = 0; i < background.number; i++)
+        // printf("gopal\n");
+        if (foreground.arr[i])
         {
-            // printf("gopal\n");
-            if (foreground.arr[i])
+            // printf("%s\n", foreground.arr[i]);
+            char *new_input_xxx = (char *)malloc(sizeof(char) * 5000);
+            strcpy(new_input_xxx, foreground.arr[i]);
+            // printf("foreground = %s\n", foreground.arr[i]);
+            char *instructions[2000];
+            char delimiter1[4] = " \t\n";
+            for (int i = 0; i < 2000; i++)
             {
-                int fork1 = fork();
-                if (fork1 == 0)
-                {
-                    char *new_input_xxx = (char *)malloc(sizeof(char) * 5000);
-                    strcpy(new_input_xxx, foreground.arr[i]);
-                    // printf("foreground = %s\n", foreground.arr[i]);
-                    char *instructions[2000];
-                    char delimiter1[4] = " \t";
-                    for (int i = 0; i < 2000; i++)
-                    {
-                        instructions[i] = (char *)malloc(sizeof(char) * 1000);
-                    }
-                    int instruction_count = 0;
-                    char *token = strtok(foreground.arr[i], delimiter1);
-
-                    while (token != NULL)
-                    {
-                        instructions[instruction_count++] = token;
-                        // printf("%s ", token);
-                        token = strtok(NULL, delimiter1);
-                    }
-                    // printf("\n");
-                    run(instructions, instruction_count, directory, home_directory, code_store_directory, input_store, new_input_xxx);
-                }
-                else if (fork1 > 0)
-                {
-                    wait(NULL);
-                }
+                instructions[i] = (char *)malloc(sizeof(char) * 1000);
             }
-            else if (background.arr[i])
+            int instruction_count = 0;
+            char *token = strtok(foreground.arr[i], delimiter1);
+
+            while (token != NULL)
             {
-                printf("background = %s\n", background.arr[i]);
-                // int fork213 = fork();
-
-                run_background(backgroundid, &number, background.arr[i]);
+                instructions[instruction_count++] = token;
+                // printf("%s ", token);
+                token = strtok(NULL, delimiter1);
             }
+            // printf("\n");
+            run(instructions, instruction_count, directory, home_directory, code_store_directory, input_store, new_input_xxx);
+        }
+        else if (background.arr[i])
+        {
+            // printf("background = %s\n", background.arr[i]);
+            // int fork213 = fork();
+
+            run_background(backgroundid, number, background.arr[i]);
         }
     }
-    else if (fork123 > 0)
+
+    if (check_past_events_in_input(input) != 1)
     {
-        // print_background_status(number, backgroundid);
+        store(input_store, code_store_directory);
+        free(input_store);
     }
-    store(input_store, code_store_directory);
-    free(input_store);
+    // print_background_status(number, backgroundid);
 }
 void print_cur_directory()
 {
@@ -1131,7 +1563,6 @@ void print_background_status(int number, int backgroundid[500])
 }
 int main()
 {
-
     uid_t uid = getuid();
     struct passwd *pw = getpwuid(uid);
     // char home_directory[directory_name_length];
@@ -1142,18 +1573,23 @@ int main()
     strcpy(colors[1], "blue");
     strcpy(colors[2], "green");
     strcpy(colors[2], "violet");
-    int backgroundid[500];
-    int number = 0;
+    // int backgroundid[500];
+    number = 0;
+    // struct passwd *pw = getpwuid(getuid());
     while (1)
     {
         // Print appropriate prompt with username, systemname and directory before accepting input
         // prompt();
         // 1st part
-        struct passwd *pw = getpwuid(getuid());
+        // struct passwd *pw = getpwuid(getuid());
+        // printf("<%s@", pw->pw_name);
         printf("<%s@", pw->pw_name);
         char hostname[256];
         gethostname(hostname, sizeof(hostname));
         printf("%s:", hostname);
+        // char hostname[256];
+        gethostname(hostname, sizeof(hostname));
+        // printf("%s:", hostname);
         char directory[256];
         getcwd(directory, sizeof(directory));
         struct stat info;
@@ -1176,7 +1612,38 @@ int main()
         char *input_store = (char *)malloc(sizeof(char) * 4096);
 
         fgets(input, 4096, stdin);
-        run_final(input,input_store, number,backgroundid);
+
+        run_final(input, input_store, &number, backgroundid);
+
+        for (int i = 0; i < number; i++)
+        {
+            if (backgroundid[i] > 0)
+            {
+
+                char path_of_a_process_file[256];
+
+                snprintf(path_of_a_process_file, sizeof(path_of_a_process_file), "/proc/%d/status", backgroundid[i]);
+
+                FILE *fptr1 = fopen(path_of_a_process_file, "r");
+
+                char information_of_process[128];
+                while (fgets(information_of_process, sizeof(information_of_process), fptr1))
+                {
+                    if (strncmp(information_of_process, "State:", 6) == 0)
+                    {
+                        if (strstr(information_of_process, "Z"))
+                        {
+                            printf("Process with PID %d is completed.\n", backgroundid[i]);
+                            backgroundid[i] = 0;
+                        }
+
+                        break;
+                    }
+                }
+
+                fclose(fptr1);
+            }
+        }
     }
     return 0;
 }
