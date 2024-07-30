@@ -1,308 +1,346 @@
-#include "headers.h"
-void printcolor(char *input, char *path_entered)
-{
-    struct stat info;
-    char *full_path = (char *)malloc(sizeof(char) * 5000);
-    char temp[2];
-    temp[0] = '/';
-    temp[1] = '\0';
-    strcpy(full_path, path_entered);
-    strcat(full_path, temp);
-    strcat(full_path, input);
-    stat(full_path, &info);
-    __mode_t permissions = info.st_mode;
+#include "peek.h"
 
-    if (checkdirectory(info))
-    {
-        printf(blue_color "\t%s\n" reset_color, input);
-    }
-    else if (checkexecutable(info))
-    {
-        printf(green_color "\t%s\n" reset_color, input);
-    }
-    else
-    {
-        printf("\t%s\n", input);
-    }
+int cmpstringp(const void *p1, const void *p2)
+{
+    return strcmp(*(char *const *)p1, *(char *const *)p2);
 }
-void printdetails(char *input, char *path_entered)
+
+void peeks(char *tokens[], int num_tokens, int proccessid)
 {
-    struct stat info;
-    char *full_path = (char *)malloc(sizeof(char) * 5000);
-    char temp[2];
-    temp[0] = '/';
-    temp[1] = '\0';
-    strcpy(full_path, path_entered);
-    strcat(full_path, temp);
-    strcat(full_path, input);
-    stat(full_path, &info);
-    __mode_t permissions = info.st_mode;
-
-    struct tm *tm_info = localtime(&info.st_mtime);
-    int year = tm_info->tm_year + 1900; // Year since 1900
-    // char *user = get_user_name(info);
-    // char *group = get_group_name(info);
-    print_permission(permissions);
-    // free(permission);
-    print_user(&info);
-    print_group(&info);
-    // printf("%s\t", user);
-    // printf("%s\t", group);
-    // free(user);
-    // free(group);
-    printf("\t%ld", info.st_size);
-    printf("\t%04d-%02d-%02d %02d:%02d:%02d",
-           year, tm_info->tm_mon + 1, tm_info->tm_mday,
-           tm_info->tm_hour, tm_info->tm_min, tm_info->tm_sec);
-    printcolor(input, path_entered);
-}
-void lshidden(char *path_entered)
-{
-    DIR *dir = opendir(path_entered);
-    if (dir == NULL)
+    if (proccessid)
     {
-        printf("incorrect path. no such directory exists\n");
-        return;
+        printf("[%d]\n", getpid());
     }
-    struct dirent *en;
-    struct dirent *entry;
-    int count_no_of_files_and_folders = 0;
-    while ((entry = readdir(dir)) != NULL)
+    int hidden_flag = 0, details_flag = 0;
+    if (num_tokens == 1)
     {
-        count_no_of_files_and_folders++;
+        LS(".", 0, 0);
     }
-    char *all_files_of_directory[count_no_of_files_and_folders];
-    for (int i = 0; i < count_no_of_files_and_folders; i++)
+    else if (num_tokens == 2)
     {
-        all_files_of_directory[i] = (char *)malloc(sizeof(char) * 300);
-    }
-    int i = 0;
-    DIR *dir1 = opendir(path_entered);
-
-    while ((entry = readdir(dir1)) != NULL)
-    {
-        all_files_of_directory[i++] = entry->d_name;
-    }
-    qsort(all_files_of_directory, count_no_of_files_and_folders, sizeof(char *), compare_strings);
-
-    for (int i = 0; i < count_no_of_files_and_folders; i++)
-    {
-        printcolor(all_files_of_directory[i], path_entered);
-    }
-    closedir(dir);
-}
-void lslong(char *path_entered)
-{
-    DIR *dir = opendir(path_entered);
-    if (dir == NULL)
-    {
-        printf("incorrect path. no such directory exists\n");
-        return;
-    }
-    struct dirent *en;
-    struct dirent *entry;
-    int count_no_of_files_and_folders = 0;
-    while ((entry = readdir(dir)) != NULL)
-    {
-        count_no_of_files_and_folders++;
-    }
-    char *all_files_of_directory[count_no_of_files_and_folders];
-    for (int i = 0; i < count_no_of_files_and_folders; i++)
-    {
-        all_files_of_directory[i] = (char *)malloc(sizeof(char) * 300);
-    }
-    int i = 0;
-    DIR *dir1 = opendir(path_entered);
-
-    while ((entry = readdir(dir1)) != NULL)
-    {
-        all_files_of_directory[i++] = entry->d_name;
-    }
-    qsort(all_files_of_directory, count_no_of_files_and_folders, sizeof(char *), compare_strings);
-
-    for (int i = 0; i < count_no_of_files_and_folders; i++)
-    {
-        if (all_files_of_directory[i][0] != '.')
+        if (strcmp(tokens[1], "-a") == 0)
         {
-            printdetails(all_files_of_directory[i], path_entered);
+            LS(".", 1, 0);
+        }
+
+        else if (strcmp(tokens[1], "-l") == 0)
+        {
+            LS(".", 0, 1);
+        }
+        else if (strcmp(tokens[1], ".") == 0)
+        {
+            LS(tokens[1], hidden_flag, details_flag);
+        }
+        else if (strcmp(tokens[1], "..") == 0)
+        {
+            LS(tokens[1], hidden_flag, details_flag);
+        }
+        else if (strcmp(tokens[1], "~") == 0)
+        {
+            LS(homeworkingdir, hidden_flag, details_flag);
+        }
+        else if (strcmp(tokens[1], "-") == 0)
+        {
+            LS(prevworkingdir, hidden_flag, details_flag);
+        }
+        else if (strcmp(tokens[1], "-la") == 0)
+        {
+            LS(prevworkingdir, 1, 1);
+        }
+        else
+        {
+            LS(tokens[1], hidden_flag, details_flag);
         }
     }
-    closedir(dir);
-}
-void ls_hidden_long(char *path_entered)
-{
-
-    DIR *dir = opendir(path_entered);
-    if (dir == NULL)
+    else if (num_tokens == 3)
     {
-        printf("incorrect path. no such directory exists\n");
-        return;
-    }
-    struct dirent *en;
-    struct dirent *entry;
-    int count_no_of_files_and_folders = 0;
-    while ((entry = readdir(dir)) != NULL)
-    {
-        count_no_of_files_and_folders++;
-    }
-    char *all_files_of_directory[count_no_of_files_and_folders];
-    for (int i = 0; i < count_no_of_files_and_folders; i++)
-    {
-        all_files_of_directory[i] = (char *)malloc(sizeof(char) * 300);
-    }
-    int i = 0;
-    DIR *dir1 = opendir(path_entered);
-
-    while ((entry = readdir(dir1)) != NULL)
-    {
-        all_files_of_directory[i++] = entry->d_name;
-    }
-    qsort(all_files_of_directory, count_no_of_files_and_folders, sizeof(char *), compare_strings);
-
-    for (int i = 0; i < count_no_of_files_and_folders; i++)
-    {
-        printdetails(all_files_of_directory[i], path_entered);
-    }
-    closedir(dir);
-}
-void ls_normal(char *path_entered)
-{
-    DIR *dir = opendir(path_entered);
-    if (dir == NULL)
-    {
-        printf("incorrect path. no such directory exists\n");
-        return;
-    }
-    struct dirent *en;
-    struct dirent *entry;
-    int count_no_of_files_and_folders = 0;
-    while ((entry = readdir(dir)) != NULL)
-    {
-        count_no_of_files_and_folders++;
-    }
-    char *all_files_of_directory[count_no_of_files_and_folders];
-    for (int i = 0; i < count_no_of_files_and_folders; i++)
-    {
-        all_files_of_directory[i] = (char *)malloc(sizeof(char) * 300);
-    }
-    DIR *dir1 = opendir(path_entered);
-    int i = 0;
-    while ((entry = readdir(dir1)) != NULL)
-    {
-        all_files_of_directory[i++] = entry->d_name;
-    }
-    qsort(all_files_of_directory, count_no_of_files_and_folders, sizeof(char *), compare_strings);
-
-    for (int i = 0; i < count_no_of_files_and_folders; i++)
-    {
-        if (all_files_of_directory[i][0] != '.')
+        if (strlen(tokens[1]) == 2)
         {
-            // printf("%s\n", all_files_of_directory[i]);
-            printcolor(all_files_of_directory[i], path_entered);
-        }
-    }
-    closedir(dir);
-}
-void ls(char *instructions[2000], int instruction_index, int instructions_count)
-{
-    int option;
-    char *path_entered = string(4096);
-    int hidden_flag = 0;
-    int long_flag = 0;
-    instruction_index = instruction_index + 1;
-    while ((instruction_index != instructions_count) && instructions[instruction_index][0] == '-'&&strlen(instructions[instruction_index])!=1)
-    {
-        if (strcmp(instructions[instruction_index], "-l") == 0 && check_valid_flag(instructions[instruction_index]))
-        {
-            long_flag = 1;
-        }
-        else if (strcmp(instructions[instruction_index], "-a") == 0 && check_valid_flag(instructions[instruction_index]))
-        {
-            hidden_flag = 1;
-        }
-        else if (strcmp(instructions[instruction_index], "-al") == 0 || strcmp(instructions[instruction_index], "-la") == 0)
-        {
-            hidden_flag = 1;
-            long_flag = 1;
-        }
-        if (check_valid_flag(instructions[instruction_index]))
-        {
-            printf("Invalid flag %s\n", instructions[instruction_index]);
-        }
-        instruction_index++;
-    }
-    if (instructions_count == 1)
-    {
-        char curr_directory[256];
-        getcwd(curr_directory, sizeof(curr_directory));
-        strcpy(path_entered, curr_directory);
-        ls_normal(path_entered);
-    }
-    else
-    {
-            // printf("YES\n");
-        if (instructions[instruction_index][0] == '~')
-        {
-            instructions[instruction_index] = make_path_for_tilda(home_directory, instructions[instruction_index]);
-            // strcpy(instructions[instruction_index], home_directory);
-        }
-        if (strcmp(instructions[instruction_index],"-\0")==0)
-        {
-            // printf("%s\n", );
-            strcpy(instructions[instruction_index], previous);
-        }
-        if (instruction_index == instructions_count)
-        {
-            // if(instructions[i+1])
-            char curr_directory[256];
-            getcwd(curr_directory, sizeof(curr_directory));
-            if (hidden_flag == 0 && long_flag == 0)
+            if (strcmp(tokens[1], "-a") == 0)
             {
-                // printf("YES\n");
-                strcpy(path_entered, curr_directory);
-                ls_normal(path_entered);
+                hidden_flag = 1;
             }
-            else if (hidden_flag == 1 && long_flag == 0)
+            else if (strcmp(tokens[1], "-l") == 0)
             {
-                strcpy(path_entered, curr_directory);
-                lshidden(path_entered);
+                details_flag = 1;
             }
-            else if (hidden_flag == 0 && long_flag == 1)
+            else
             {
-                strcpy(path_entered, curr_directory);
-                lslong(path_entered);
+                printf("Invalid Command\n");
+                return;
             }
-            else if (hidden_flag == 1 && long_flag == 1)
+        }
+        else if (strlen(tokens[1]) == 3)
+        {
+            if (strcmp(tokens[1], "-al") == 0)
+                hidden_flag = 1, details_flag = 1;
+            else if (strcmp(tokens[1], "-la") == 0)
+                details_flag = 1, hidden_flag = 1;
+            else
             {
-                strcpy(path_entered, curr_directory);
-                ls_hidden_long(path_entered);
+                printf("Invalid Command\n");
+                return;
             }
         }
         else
         {
-            if (hidden_flag == 0 && long_flag == 0)
+            printf("Invalid Command\n");
+            return;
+        }
+        LS(tokens[2], hidden_flag, details_flag);
+    }
+    else if (num_tokens == 4)
+    {
+        int f1 = 0, f2 = 0;
+        if (strcmp(tokens[1], "-l") == 0 || strcmp(tokens[1], "-a") == 0)
+        {
+            f1 = 1;
+            if (strcmp(tokens[1], "-l") == 0)
             {
-                // if(instructions[i+1])
-                // char curr_directory[256];
-                // getcwd(curr_directory, sizeof(curr_directory));
-                strcpy(path_entered, instructions[instruction_index]);
-                ls_normal(path_entered);
+                details_flag = 1;
             }
-            else if (hidden_flag == 1 && long_flag == 0)
+            else
             {
-                strcpy(path_entered, instructions[instruction_index]);
-                lshidden(path_entered);
-            }
-            else if (hidden_flag == 0 && long_flag == 1)
-            {
-                strcpy(path_entered, instructions[instruction_index]);
-                lslong(path_entered);
-            }
-            else if (hidden_flag == 1 && long_flag == 1)
-            {
-                strcpy(path_entered, instructions[instruction_index]);
-                ls_hidden_long(path_entered);
+                hidden_flag = 1;
             }
         }
+        if (strcmp(tokens[2], "-l") == 0 || strcmp(tokens[2], "-a") == 0)
+        {
+            f2 = 1;
+            if (strcmp(tokens[2], "-l") == 0)
+            {
+                details_flag = 1;
+            }
+            else
+            {
+                hidden_flag = 1;
+            }
+        }
+        if (f1 && f2)
+        {
+            LS(tokens[3], hidden_flag, details_flag);
+        }
+        else
+        {
+            printf("Invalid Command\n");
+            return;
+        }
     }
+    else
+    {
+        printf("Invalid command\n");
+        return;
+    }
+}
+
+char *months(int no, char *name)
+{
+    if (no == 0)
+        strcpy(name, "Jan");
+
+    else if (no == 1)
+        strcpy(name, "Feb");
+
+    else if (no == 2)
+        strcpy(name, "Mar");
+    else if (no == 3)
+        strcpy(name, "Apr");
+
+    else if (no == 4)
+        strcpy(name, "May");
+
+    else if (no == 5)
+        strcpy(name, "Jun");
+
+    else if (no == 6)
+        strcpy(name, "Jul");
+
+    else if (no == 7)
+        strcpy(name, "Aug");
+
+    else if (no == 8)
+        strcpy(name, "Sep");
+
+    else if (no == 9)
+        strcpy(name, "Oct");
+
+    else if (no == 10)
+        strcpy(name, "Nov");
+
+    else if (no == 11)
+        strcpy(name, "Dec");
+
+    return name;
+}
+
+void LS(char *dir, int op_a, int op_l)
+{
+
+    if (strcmp(dir, "~") == 0)
+    {
+        strcpy(dir, homeworkingdir);
+    }
+    else if (strcmp(dir, "-") == 0)
+    {
+        strcpy(dir, prevworkingdir);
+    }
+
+    DIR *dh = opendir(dir);
+    if (!dh)
+    {
+        if (errno = ENOENT)
+        {
+            perror("Directory doesn't exist");
+        }
+        else
+        {
+            perror("Unable to read directory");
+        }
+        return;
+    }
+    int numberofiles = 0;
+
+    while (readdir(dh) != NULL)
+    {
+        numberofiles++;
+    }
+
+    closedir(dh);
+    dh = opendir(dir);
+    char **store = (char **)malloc(sizeof(char *) * numberofiles);
+
+    for (int i = 0; i < numberofiles; i++)
+        store[i] = (char *)malloc(sizeof(char) * 1024);
+
+    int ct = 0;
+    struct dirent *d;
+    int totalsize = 0;
+    while ((d = readdir(dh)) != NULL)
+    {
+        if (!op_a && d->d_name[0] == '.')
+            continue;
+        struct stat data;
+        char *newdir = (char *)malloc(sizeof(char) * 1024);
+        strcpy(newdir, dir);
+        strcat(newdir, "/");
+        strcat(newdir, d->d_name);
+        if (lstat(newdir, &data) == -1)
+        {
+            printf("%s\n", d->d_name);
+            perror("Error getting stat struct");
+            return;
+        }
+        strcpy(store[ct], d->d_name);
+        ct++;
+        totalsize += data.st_blocks;
+    }
+    if (op_l)
+        printf("total %d\n", totalsize / 2);
+    qsort(store, ct, sizeof(char *), cmpstringp);
+    for (int i = 0; i < ct; i++)
+    {
+        struct stat data;
+        char *newdir = (char *)malloc(sizeof(char) * 1024);
+        strcpy(newdir, dir);
+        strcat(newdir, "/");
+        strcat(newdir, store[i]);
+        if (lstat(newdir, &data) == -1)
+        {
+            printf("%s\n", store[i]);
+            perror("Error getting stat struct");
+            return;
+        }
+
+        int c1 = 0, c2 = 0, c3 = 0;
+        if (data.st_mode & __S_IFDIR)
+        {
+            c1 = 1;
+        }
+        else if (data.st_mode & S_IXUSR)
+        {
+            c2 = 1;
+        }
+        else if (S_ISLNK(data.st_mode))
+        {
+            c3 = 1;
+        }
+        if (op_l)
+        {
+            if (c1)
+            {
+                printf("%s", "\033[1m\033[34m");
+            }
+            else if (c2)
+            {
+                printf("%s", "\033[1m\033[32m");
+            }
+            else if (c3)
+            {
+                printf("%s", "\033[1m\033[33m");
+            }
+            else
+            {
+                printf("%s", "\033[1m\033[0m");
+            }
+            struct passwd *pws = getpwuid(data.st_uid);
+            char *user_name = pws->pw_name;
+            struct group *grp = getgrgid(data.st_gid);
+            char *group_name = grp->gr_name;
+            char modeStr[11]; // 9 permissions + 1 file type + 1 null terminator
+            mode_t mode = data.st_mode;
+
+            snprintf(modeStr, sizeof(modeStr), "%c%c%c%c%c%c%c%c%c%c",
+                     (S_ISDIR(mode)) ? 'd' : '-',
+                     (mode & S_IRUSR) ? 'r' : '-',
+                     (mode & S_IWUSR) ? 'w' : '-',
+                     (mode & S_IXUSR) ? 'x' : '-',
+                     (mode & S_IRGRP) ? 'r' : '-',
+                     (mode & S_IWGRP) ? 'w' : '-',
+                     (mode & S_IXGRP) ? 'x' : '-',
+                     (mode & S_IROTH) ? 'r' : '-',
+                     (mode & S_IWOTH) ? 'w' : '-',
+                     (mode & S_IXOTH) ? 'x' : '-');
+
+            printf("%s", modeStr);
+            time_t l_m = data.st_mtime;
+            struct tm last_mod;
+            localtime_r(&l_m, &last_mod);
+            int month = last_mod.tm_mon;
+            int day = last_mod.tm_mday;
+            int min = last_mod.tm_min;
+            int hour = last_mod.tm_hour;
+            char *monthName = (char *)malloc(sizeof(char) * 5);
+            months(month, monthName);
+            printf("%2ld ", data.st_nlink);
+            printf("%s  %s ", user_name, group_name);
+            printf("%5ld ", data.st_size);
+            printf("%s %02d %02d:%02d ", monthName, day, hour, min);
+            printf("%s ", store[i]);
+            printf("%s\n", "\033[1m\033[0m");
+        }
+        else
+        {
+            if (c1)
+            {
+                printf("%s", "\033[1m\033[34m");
+            }
+            else if (c2)
+            {
+                printf("%s", "\033[1m\033[32m");
+            }
+            else if (c3)
+            {
+                printf("%s", "\033[1m\033[33m");
+            }
+            else
+            {
+                printf("%s", "\033[1m\033[0m");
+            }
+            printf("%s\n", store[i]);
+            printf("%s", "\033[1m\033[0m");
+        }
+        free(store[i]);
+    }
+    closedir(dh);
+    free(d);
 }

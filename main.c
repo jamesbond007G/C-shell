@@ -1,112 +1,121 @@
 #include "headers.h"
-int number;
-int backgroundid[500];
-char home_directory[directory_name_length];
-char code_store_directory[directory_name_length];
-char directory[256];
-char previous[4096];
+#include "prompt.h"
+#include "trim.h"
+#include "function_decider.h"
+
+char *currentworkingdir;
+char *prevworkingdir;
+char *homeworkingdir;
+char *com;
+int check;
+int tim;
+int f_check, d_check;
+char *to_change;
+char *s;
+char *command_pid[100000 + 1];
+int past = 0;
+void custom_sigint_handler(int signum)
+{
+    int targetPID = foregroundProcessPid;
+    if ((foregroundProcessPid == -1))
+        return;
+    if (kill(targetPID, 9) == -1)
+    {
+        perror("kill");
+    }
+    foregroundProcessPid = -1;
+}
+int foregroundProcessPid = -1;
+
+void sigtstp_handler(int signum)
+{
+    int targetPID = foregroundProcessPid;
+    if ((foregroundProcessPid == -1))
+        return;
+
+    if (kill(targetPID, SIGSTOP) == -1)
+    {
+
+        perror("kill");
+    }
+    foregroundProcessPid = -1;
+}
+struct ProcessInfo *processList = NULL;
 int main()
 {
-    uid_t uid = getuid();
-    struct passwd *pw = getpwuid(uid);
-    strcpy(home_directory, pw->pw_dir);
-    getcwd(code_store_directory, sizeof(code_store_directory));
+    signal(SIGINT, SIG_IGN);
+    signal(SIGTSTP, SIG_IGN);
+    signal(SIGTTOU, SIG_IGN);
+    if (signal(SIGINT, custom_sigint_handler) == SIG_ERR)
+    {
+        perror("signal");
+    }
+    if (signal(SIGTSTP, sigtstp_handler) == SIG_ERR)
+    {
+        perror("signal");
+    }
+    printf("YES");
 
-    number = 0;
+    for (int i = 0; i < 100000 + 1; i++)
+    {
+        command_pid[i] = (char *)malloc(sizeof(char) * 20);
+    }
+    s = (char *)malloc(sizeof(char) * 100);
+    clear();
+    currentworkingdir = (char *)malloc(sizeof(char) * 1024);
+    homeworkingdir = (char *)malloc(sizeof(char) * 1024);
+    prevworkingdir = (char *)malloc(sizeof(char) * 1024);
+    com = (char *)malloc(sizeof(char) * 1024);
+    to_change = (char *)malloc(sizeof(char) * 1024);
+
+    getcwd(currentworkingdir, 1024);
+    strcpy(prevworkingdir, currentworkingdir);
+    strcpy(homeworkingdir, currentworkingdir);
+    char *input = (char *)malloc(sizeof(char) * 1024);
+
     while (1)
     {
-        // Print appropriate prompt with username, systemname and directory before accepting input
-        // prompt();
-        char directory[256];
-        char hostname[256];
-        // 1st part
-        struct stat info;
-        int fg = fork();
-        char *input_store = (char *)malloc(sizeof(char) * 4096);
-        char input[4096];
-        if (fg == 0)
+        prompt(homeworkingdir);
+        past=0;
+        if (fgets(input, 1024, stdin) == NULL)
         {
-            printf("<%s@", pw->pw_name);
-            gethostname(hostname, sizeof(hostname));
-            printf("%s:", hostname);
-            // char hostname[256];
-            gethostname(hostname, sizeof(hostname));
-            // printf("%s:", hostname);
-            getcwd(directory, sizeof(directory));
-            // printf("gopal = %s\ngoapl  =%s\n", code_store_directory, directory);
-            char *differnce = different(code_store_directory, directory);
-            if (differnce)
-
+            while (processList != NULL)
             {
-                printf("%s>", differnce);
+                struct ProcessInfo *x = processList;
+                processList = processList->next;
+                
+                if (kill(x->pid, 9) == 0)
+                {
+                    printf("Signal %d sent to process with PID %d\n", 9, x->pid);
+                }
+                else
+                {
+                    perror("kill");
+                    return 1;
+                }
+                processList = removeProcess(processList, x->pid);
             }
-            else
-            {
-                printf("~>");
-            }
-            // free(differnce);
-            // 2nd part
 
-            // 3rd part
-
-            fgets(input, 4096, stdin);
+            printf("\n");
+            exit(0);
         }
-        else if (fg > 0)
+        Node *currentNode = completedList;
+        while (currentNode != NULL)
         {
-            int status;
-            waitpid(fg, &status, 0);
-        }
-
-        run_final(input, input_store, &number, backgroundid);
-        // printf("%d\n",number);
-        // sleep(3);
-
-        for (int i = 0; i < number; i++)
-        {
-            if (backgroundid[i] > 0)
+            if (WIFEXITED(currentNode->status))
             {
-
-                char path_of_a_process_file[256];
-
-                strcpy(path_of_a_process_file, "/proc");
-                char *try = string(200);
-                int y = snprintf(try, sizeof(try), "%d", backgroundid[i]);
-                filecat(path_of_a_process_file, try);
-                filecat(path_of_a_process_file, "status");
-
-                FILE *fptr1 = fopen(path_of_a_process_file, "r");
-                if (fptr1 == NULL && backgroundid[i] > 0)
-                {
-
-                    printf("Process with PID %d is completed.\n", backgroundid[i]);
-                    backgroundid[i] = 0;
-                    continue;
-                }
-                if (fptr1)
-                {
-                    char information_of_process[128];
-                    while (fgets(information_of_process, sizeof(information_of_process), fptr1))
-                    {
-                        if (strncmp(information_of_process, "State:\t", 6) == 0)
-                        {
-                            if (strstr(information_of_process, "Z"))
-                            {
-                                printf("Process with PID %d is completed.\n", backgroundid[i]);
-                                backgroundid[i] = 0;
-                            }
-
-                            break;
-                        }
-                    }
-                }
-
-                // printf("YES\n\n");
-                if (fptr1)
-                {
-                    fclose(fptr1);
-                }
+                printf("%s process with PID %d exited normally with status %d\n", command_pid[currentNode->pid], currentNode->pid, WEXITSTATUS(currentNode->status));
             }
+            else if (WIFSIGNALED(currentNode->status))
+            {
+                printf("%s process with PID %d exited abnormally due to signal %d\n", command_pid[currentNode->pid], currentNode->pid, WTERMSIG(currentNode->status));
+            }
+            Node *temp = currentNode;
+            currentNode = currentNode->next;
+            free(temp);
         }
+        completedList = NULL;
+        input = trimspace(input);
+        function_call(input);
     }
-    return 0;
 }

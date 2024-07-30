@@ -1,0 +1,15 @@
+activities
+echo "hi yes hello" | cat | cat > test.txt; cat test.txt | cat >> test.txt; cat < test.txt | cat >> test.txt; cat test.txt
+neonate -n 2
+warp -
+warp ~
+peek
+peek -l
+peek -a
+peek -la
+sleep 10
+activities
+fg 14948
+sleep 100
+activities
+fg 15005

@@ -1,39 +1,86 @@
-#include"headers.h"
-void warp(char *instructions[2000], int i, int instruction_count)
+#include "warp.h"
+
+void swap1(char **str1_ptr, char **str2_ptr)
 {
-    char *newinput_path;
-    newinput_path = make_path_for_spaces(instructions, i, instruction_count);
-    char previous[4096];
-    int start = strlen(directory) - 1;
-    char doubledot[4] = "..";
-    char minus[4] = "-";
-    char delimiter[] = " ";
-    char *token4 = strtok(instructions[i], delimiter);
-    if (token4[0] == '-')
+    char *temp = *str1_ptr;
+    *str1_ptr = *str2_ptr;
+    *str2_ptr = temp;
+}
+
+void warps(int proccessid, int num_tokens, char *tokens[])
+{
+    if (proccessid)
     {
-        char previousnew[4096];
-        char *new_path = make_path_for_minus(previous, newinput_path);
-        strcpy(previousnew, current_directory());
-        chdir(new_path);
-        // free(new_path);
-        strcpy(previous, previousnew);
-        // printf("%s\n", previous);
+        printf("[%d]\n", getpid());
     }
-    else if (token4[0] == '~')
+    if (num_tokens == 1)
     {
-        strcpy(previous, current_directory());
-        chdir(make_path_for_tilda(home_directory, newinput_path));
+        chdir(homeworkingdir);
+        strcpy(currentworkingdir, homeworkingdir);
+        printf("%s\n", currentworkingdir);
     }
     else
     {
-        // printf("%s\n", instructions[i + 1]);
-        // strcpy(previous, directory);
-        strcpy(previous, current_directory());
+        for (int i = 1; i < num_tokens; i++)
+        {
+            tokens[i] = trimspace(tokens[i]);
 
-        // printf("%s\n", new_input_xxx);
-        chdir(newinput_path);
+            if (strcmp(tokens[i], "-") == 0)
+            {
+                chdir(prevworkingdir);
+                swap1(&currentworkingdir, &prevworkingdir);
+                printf("%s\n", currentworkingdir);
+            }
+            else if (strcmp(tokens[i], "~") == 0)
+            {
+                strcpy(prevworkingdir, currentworkingdir);
+                strcpy(currentworkingdir, homeworkingdir);
+                chdir(currentworkingdir);
+                printf("%s\n", currentworkingdir);
+            }
+            else if (strcmp(tokens[i], ".") == 0)
+            {
+                printf("%s\n", currentworkingdir);
+            }
+            else if (strcmp(tokens[i], "") == 0)
+            {
+                chdir(homeworkingdir);
+                strcpy(prevworkingdir, currentworkingdir);
+                strcpy(currentworkingdir, homeworkingdir);
+                printf("%s\n", currentworkingdir);
+            }
+            else if (strcmp(tokens[i], " ") == 0)
+            {
+                chdir(homeworkingdir);
+                strcpy(prevworkingdir, currentworkingdir);
+                strcpy(currentworkingdir, homeworkingdir);
+                printf("%s\n", currentworkingdir);
+            }
+            else if (tokens[i][0] == '~')
+            {
+                strcpy(prevworkingdir, currentworkingdir);
+                chdir(homeworkingdir);
+                char *s1 = (char *)malloc(sizeof(char) * 1024);
+                for (int j = 2; j < strlen(tokens[i]); j++)
+                {
+                    s1[j - 2] = tokens[i][j];
+                }
+                s1[strlen(tokens[i]) - 2] = '\0';
+                if (chdir(s1) == -1)
+                    printf("error");
+
+                getcwd(currentworkingdir, 1024);
+                printf("%s\n", currentworkingdir);
+            }
+            else
+            {
+                strcpy(prevworkingdir, currentworkingdir);
+                if (chdir(tokens[i]) == -1)
+                    printf("error");
+
+                getcwd(currentworkingdir, 1024);
+                printf("%s\n", currentworkingdir);
+            }
+        }
     }
-
-    // printf()
-    i = instruction_count;
 }

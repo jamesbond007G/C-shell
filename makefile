@@ -1,2 +1,2 @@
 main:
-	gcc -g main.c headers.c pastevents.c peek.c seek.c separate.c sysco.c warp.c pro.c -lm
+	gcc -g main.c prompt.c trim.c function_decider.c peek.c warp.c proclore.c seek.c pastevents.c iman.c neonate.c activities.c ping.c fg.c bg.c systemprocess.c  

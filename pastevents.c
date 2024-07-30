@@ -1,70 +1,122 @@
-#include "headers.h"
-int get_end_for_i(int i, char *home_dir)
+#include "pastevents.h"
+
+void get_commands2(char *line)
 {
-    int k = 0;
-    for (int j = 1; j < i; j++)
+    char *command;
+    char copy1[1024], copy2[1024];
+    strcpy(copy1, line);
+    strcpy(copy2, line);
+    command = strtok(line, "&;");
+    int numberofstore = 0;
+    while (command != NULL)
     {
-        k = k - (read_bytes_from_file(j, home_dir) + 1);
+        command = trimspace(command);
+        numberofstore++, command = strtok(NULL, "&;");
     }
-    return k;
-}
-int get_begin_for_i(int i, char *home_dir)
-{
-    int k = 0;
-    int end = get_end_for_i(i, home_dir);
-    int begin = end - read_bytes_from_file(i, home_dir) - 1;
 
-    return begin;
-}
-char *get_instructions_for_i(int i, char *home_dir)
-{
-    FILE *fptr = open_c_file("r", home_dir);
-    fseek(fptr, get_begin_for_i(i, home_dir), SEEK_END);
-    
-    int size = read_bytes_from_file(i, home_dir);
-    char *buffer = (char *)malloc(sizeof(char) * (4096));
-    int k = fread(buffer, 1, size, fptr);
-    buffer[k] = '\0';
-    fclose(fptr);
-    return buffer;
-}
-void pastevents_delete(char *home_dir)
-{
-    FILE *fptr = open_c_file("w", home_dir);
-    FILE *fptr1 = open_b_file("w", home_dir);
-    fclose(fptr);
-    fclose(fptr1);
-}
-void pastevents_execute(int n, char *home_dir, char *directory, char *home_directory, char *code_store_directory, char *input, char *new_input_xxx)
-{
-    char *instruction[2];
-    instruction[0] = (char *)malloc(sizeof(char) * 500);
-    instruction[0] = get_instructions_for_i(n, home_dir);
-    char *input_store;
-    input_store = (char *)malloc(sizeof(char) * 4096);
-    run_final(instruction[0], input_store, &number, backgroundid);
-}
-int check_past_events_in_input(char *input)
-{
-    // char targ
-    char delimiter1[] = " ;\t\n&";
-    // char delimiter2 = ';';
-    char *instructions[2000];
+    char *store[numberofstore + 1];
+    int i = 0;
+    if (numberofstore <= 0)
+        return;
+    char *beg = copy1;
+    store[0] = strtok(copy1, "&;");
 
-    int instruction_count = 0;
-    char *token = strtok(input, delimiter1);
-
-    while (token != NULL)
+    while (store[i] != NULL && strcmp(store[i], "") != 0)
     {
-        instructions[instruction_count++] = token;
-        token = strtok(NULL, delimiter1);
+        i++, store[i] = strtok(NULL, "&;");
     }
-    for (int i = 0; i < instruction_count; i++)
+    // int past = 0;
+    int backup_stdout = dup(STDOUT_FILENO);
+    int backup_stdin = dup(STDIN_FILENO);
+    for (int j = 0; j < numberofstore; j++)
     {
-        if (strcmp(instructions[i], "pastevents") == 0)
+        int processid = 0;
+        if (copy2[strlen(store[j]) + (store[j] - beg)] == '&')
+            processid = 1;
+        if (strcmp(store[j], "\n") == 0)
         {
+            printf("%s", (store[j]));
+            continue;
+        }
+        pipechecker(store[j], processid);
+        fixInput(backup_stdin, backup_stdout);
+    }
+}
+
+int pasts(char *tokens[], int num_tokens, int proccessid)
+{
+    if (proccessid)
+    {
+        printf("[%d]\n", getpid());
+    }
+    FILE *fptr;
+    char *file = (char *)malloc(sizeof(char) * 1024);
+    strcpy(file, homeworkingdir);
+    strcat(file, "/past.txt");
+    fptr = fopen(file, "r+");
+    if (fptr == NULL)
+    {
+        printf("Error!");
+    }
+    if (num_tokens == 3)
+    {
+        if (strcmp(tokens[1], "execute") == 0)
+        {
+
+            char buffer[1024];
+            char *lastLine[16];
+            for (int i = 0; i < 16; i++)
+            {
+                lastLine[i] = (char *)malloc(sizeof(char) * 1024);
+            }
+            int ct = 0;
+            while (fgets(buffer, sizeof(buffer), fptr) != NULL)
+            {
+                strcpy(lastLine[ct++], buffer);
+            }
+            get_commands2(lastLine[ct - (atoi(tokens[2]))]);
+        }
+        else
+        {
+            printf("Invalid Command\n");
             return 1;
         }
     }
-    return 0;
+    else if (num_tokens == 2)
+    {
+        if (strcmp(tokens[1], "purge") == 0)
+        {
+            if (ftruncate(fileno(fptr), 0) != 0)
+            {
+                perror("Error truncating file");
+                fclose(fptr);
+                return 1;
+            }
+        }
+        else
+        {
+            printf("Invalid Command\n");
+            return 1;
+        }
+    }
+    else if (num_tokens == 1)
+    {
+        char buffer[1024];
+        char lastLine[1024] = "";
+
+        while (fgets(buffer, sizeof(buffer), fptr) != NULL)
+        {
+            strcpy(lastLine, buffer);
+            printf("%s", lastLine);
+        }
+        printf("\n");
+    }
+    else
+    {
+        fclose(fptr);
+        printf("Invalid Command\n");
+        return 0;
+    }
+    fclose(fptr);
+    return 1;
 }
